@@ -15,6 +15,7 @@ import {
   Icon,
   NavBar,
   Field,
+  Form,
   CellGroup,
   Uploader,
   Popup,
@@ -44,6 +45,7 @@ app.use(SwipeItem)
 app.use(Icon)
 app.use(NavBar)
 app.use(Field)
+app.use(Form)
 app.use(CellGroup)
 app.use(Uploader)
 app.use(Popup)

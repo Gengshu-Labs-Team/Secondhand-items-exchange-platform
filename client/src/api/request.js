@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { showToast } from 'vant'
+import router from '../router'
 
 // 创建 axios 实例
 const request = axios.create({
@@ -7,9 +8,13 @@ const request = axios.create({
   timeout: 10000
 })
 
-// 请求拦截器
+// 请求拦截器 - 添加 token
 request.interceptors.request.use(
   config => {
+    const token = localStorage.getItem('token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
     return config
   },
   error => {
@@ -29,7 +34,25 @@ request.interceptors.response.use(
   },
   error => {
     console.error('请求错误:', error)
-    showToast(error.response?.data?.message || '网络错误')
+    const status = error.response?.status
+    const message = error.response?.data?.message
+    
+    // 401 未登录或 token 过期
+    if (status === 401) {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      showToast(message || '请先登录')
+      router.push({ path: '/login', query: { redirect: router.currentRoute.value.fullPath } })
+      return Promise.reject(error)
+    }
+    
+    // 403 权限不足
+    if (status === 403) {
+      showToast(message || '权限不足')
+      return Promise.reject(error)
+    }
+    
+    showToast(message || '网络错误')
     return Promise.reject(error)
   }
 )

@@ -51,6 +51,7 @@ case $choice in
     2)
         echo -e "${YELLOW}[更新前端]${NC}"
         cd client
+        rm -rf node_modules
         npm install
         npm run build
         rm -rf /var/www/html/*
@@ -65,6 +66,7 @@ case $choice in
         
         echo -e "${YELLOW}[更新前端]${NC}"
         cd ../client
+        rm -rf node_modules
         npm install
         npm run build
         rm -rf /var/www/html/*

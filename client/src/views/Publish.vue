@@ -74,19 +74,6 @@
           @click="showConditionPicker = true"
         />
 
-        <!-- 宿舍位置 -->
-        <van-field
-          v-model="form.dormitory"
-          label="宿舍位置"
-          placeholder="如：沁苑东13舍703"
-          maxlength="30"
-          required
-        >
-          <template #left-icon>
-            <van-icon name="location-o" />
-          </template>
-        </van-field>
-
         <!-- 描述 -->
         <van-field
           v-model="form.description"
@@ -98,37 +85,11 @@
           rows="4"
           autosize
         />
-
-        <!-- 联系方式 -->
-        <van-field
-          v-model="form.contact_info"
-          label="联系方式"
-          placeholder="微信号或QQ号"
-          required
-        >
-          <template #left-icon>
-            <van-icon name="chat-o" />
-          </template>
-        </van-field>
-
-        <!-- 管理密码 -->
-        <van-field
-          v-model="form.admin_password"
-          label="管理密码"
-          type="password"
-          placeholder="4-6位密码，用于删除商品"
-          maxlength="6"
-          required
-        >
-          <template #left-icon>
-            <van-icon name="lock" />
-          </template>
-        </van-field>
       </van-cell-group>
 
-      <div class="password-tip">
+      <div class="info-tip">
         <van-icon name="info-o" />
-        <span>请牢记管理密码，成交后可凭密码删除商品</span>
+        <span>商品的宿舍位置和联系方式将自动使用您的个人信息</span>
       </div>
 
       <!-- 提交按钮 -->
@@ -181,10 +142,7 @@ const form = ref({
   price: '',
   category_id: '',
   condition: '',
-  dormitory: '',
-  description: '',
-  contact_info: '',
-  admin_password: ''
+  description: ''
 })
 
 // 文件列表
@@ -336,21 +294,6 @@ const validateForm = () => {
     return false
   }
   
-  if (!form.value.dormitory.trim()) {
-    showToast('请输入宿舍位置')
-    return false
-  }
-  
-  if (!form.value.contact_info.trim()) {
-    showToast('请输入联系方式')
-    return false
-  }
-  
-  if (!form.value.admin_password || form.value.admin_password.length < 4) {
-    showToast('请输入4-6位管理密码')
-    return false
-  }
-  
   return true
 }
 
@@ -370,10 +313,7 @@ const handleSubmit = async () => {
       price: parseFloat(form.value.price),
       category_id: form.value.category_id,
       condition: form.value.condition,
-      dormitory: form.value.dormitory,
       description: form.value.description,
-      contact_info: form.value.contact_info,
-      admin_password: form.value.admin_password,
       image_urls: imageUrls
     })
     
@@ -430,8 +370,8 @@ onMounted(() => {
   margin-top: 4px;
 }
 
-/* 密码提示 */
-.password-tip {
+/* 信息提示 */
+.info-tip {
   display: flex;
   align-items: center;
   gap: 4px;
