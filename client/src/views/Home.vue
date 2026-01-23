@@ -17,6 +17,13 @@
         class="search-clear"
         @click="clearSearch"
       />
+      <!-- 用户头像/登录按钮 -->
+      <div class="user-avatar" @click="goProfile">
+        <van-icon v-if="!isLoggedIn" name="user-circle-o" size="24" color="#667eea" />
+        <div v-else class="avatar-circle">
+          {{ userInitial }}
+        </div>
+      </div>
     </div>
 
     <!-- 搜索结果提示 -->
@@ -208,6 +215,20 @@ import { useRouter } from 'vue-router'
 import { getItemList, getCategoryList } from '@/api'
 
 const router = useRouter()
+
+// 用户状态
+const isLoggedIn = computed(() => !!localStorage.getItem('token'))
+const currentUser = computed(() => {
+  try {
+    return JSON.parse(localStorage.getItem('user') || '{}')
+  } catch {
+    return {}
+  }
+})
+const userInitial = computed(() => {
+  const name = currentUser.value.username || ''
+  return name.charAt(0).toUpperCase()
+})
 
 // 状态
 const activeTab = ref(0)
@@ -453,6 +474,15 @@ const goPublish = () => {
   router.push('/publish')
 }
 
+// 跳转个人中心/登录页
+const goProfile = () => {
+  if (isLoggedIn.value) {
+    router.push('/profile')
+  } else {
+    router.push('/login')
+  }
+}
+
 // 生命周期
 onMounted(() => {
   fetchCategories()
@@ -504,6 +534,26 @@ onUnmounted(() => {
 
 .search-clear:hover {
   color: #666;
+}
+
+/* 用户头像 */
+.user-avatar {
+  cursor: pointer;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.avatar-circle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 /* 筛选结果提示栏 */
@@ -558,24 +608,25 @@ onUnmounted(() => {
   display: flex;
   justify-content: flex-start;
   align-items: center;
-  padding: 8px 12px;
+  padding: 10px 12px;
   background: #fff;
   border-bottom: 1px solid #eee;
 }
 
 .sort-buttons {
   display: flex;
-  gap: 8px;
+  gap: 10px;
 }
 
 .sort-btn {
-  font-size: 12px;
-  padding: 4px 10px;
-  border-radius: 12px;
+  font-size: 14px;
+  padding: 6px 14px;
+  border-radius: 16px;
   color: #666;
   background: #f5f5f5;
   cursor: pointer;
   transition: all 0.2s;
+  font-weight: 500;
 }
 
 .sort-btn.active {
@@ -587,33 +638,34 @@ onUnmounted(() => {
 .dorm-filter-bar {
   display: flex;
   align-items: center;
-  padding: 8px 12px;
+  padding: 10px 12px;
   background: #fff;
   border-bottom: 1px solid #eee;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .dorm-filter-label {
-  font-size: 14px;
+  font-size: 16px;
   flex-shrink: 0;
 }
 
 .dorm-filter-options {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .dorm-btn {
-  font-size: 12px;
-  padding: 4px 12px;
-  border-radius: 12px;
+  font-size: 14px;
+  padding: 6px 16px;
+  border-radius: 16px;
   color: #666;
   background: #f5f5f5;
   cursor: pointer;
   transition: all 0.2s;
   border: 1px solid transparent;
+  font-weight: 500;
 }
 
 .dorm-btn:hover {
