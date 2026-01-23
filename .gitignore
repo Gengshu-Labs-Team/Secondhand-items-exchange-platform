@@ -28,3 +28,14 @@ Thumbs.db
 # Uploads (可选，生产环境建议保留)
 # server/uploads/*
 # !server/uploads/.gitkeep
+
+# 持久化数据目录（部署时自动创建，不需要版本控制）
+persistent-data/
+
+# 备份文件
+backups/
+
+# SQLite 数据库
+server/data/*.db
+server/data/*.db-wal
+server/data/*.db-shm
