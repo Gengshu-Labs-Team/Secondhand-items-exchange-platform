@@ -46,6 +46,11 @@ scp -r * root@服务器IP:/var/www/campus-trade/
 ```bash
 cd /var/www/campus-trade/deploy
 chmod +x deploy.sh
+
+# 如果从 Windows 上传，需要先转换换行符
+sed -i 's/\r$//' deploy.sh update.sh
+
+# 运行部署
 sudo bash deploy.sh
 ```
 
