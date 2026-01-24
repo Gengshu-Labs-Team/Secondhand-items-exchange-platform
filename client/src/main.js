@@ -15,6 +15,7 @@ import {
   Icon,
   NavBar,
   Field,
+  Form,
   CellGroup,
   Uploader,
   Popup,
@@ -23,7 +24,11 @@ import {
   Picker,
   Loading,
   Empty,
-  ActionSheet
+  ActionSheet,
+  Search,
+  Pagination,
+  DropdownMenu,
+  DropdownItem
 } from 'vant'
 
 // Vant 样式
@@ -44,6 +49,7 @@ app.use(SwipeItem)
 app.use(Icon)
 app.use(NavBar)
 app.use(Field)
+app.use(Form)
 app.use(CellGroup)
 app.use(Uploader)
 app.use(Popup)
@@ -53,6 +59,10 @@ app.use(Picker)
 app.use(Loading)
 app.use(Empty)
 app.use(ActionSheet)
+app.use(Search)
+app.use(Pagination)
+app.use(DropdownMenu)
+app.use(DropdownItem)
 
 app.use(router)
 app.mount('#app')

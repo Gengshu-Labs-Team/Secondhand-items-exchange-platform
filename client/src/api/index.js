@@ -1,8 +1,18 @@
 import request from './request'
 
 // 获取商品列表
-export function getItemList(params) {
-  return request.get('/items', { params })
+export async function getItemList(params) {
+  try {
+    const response = await request.get('/items', { params })
+    console.log('API getItemList raw response:', response)
+    console.log('API response type:', typeof response)
+    console.log('API response.data:', response.data)
+    console.log('API response.items:', response.items)
+    return response
+  } catch (error) {
+    console.error('API getItemList error:', error)
+    throw error
+  }
 }
 
 // 获取商品详情
@@ -15,11 +25,14 @@ export function publishItem(data) {
   return request.post('/items', data)
 }
 
-// 删除商品
-export function deleteItem(id, adminPassword) {
-  return request.delete(`/items/${id}`, {
-    data: { admin_password: adminPassword }
-  })
+// 更新商品信息
+export function updateItem(id, data) {
+  return request.put(`/items/${id}`, data)
+}
+
+// 删除商品（不再需要密码）
+export function deleteItem(id) {
+  return request.delete(`/items/${id}`)
 }
 
 // 获取分类列表

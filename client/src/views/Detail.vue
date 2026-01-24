@@ -60,8 +60,8 @@
         <p>{{ item.description || '卖家很懒，什么都没写~' }}</p>
       </div>
 
-      <!-- 删除入口（隐藏） -->
-      <div class="delete-entry" @click="showDeleteSheet = true">
+      <!-- 管理入口（仅发布者或管理员可见） -->
+      <div v-if="item.canEdit || item.canDelete" class="delete-entry" @click="showManageSheet = true">
         <van-icon name="setting-o" />
         <span>管理商品</span>
       </div>
@@ -88,40 +88,48 @@
         </div>
       </van-popup>
 
-      <!-- 删除操作表 -->
+      <!-- 管理操作表 -->
       <van-action-sheet
-        v-model:show="showDeleteSheet"
-        :actions="deleteActions"
+        v-model:show="showManageSheet"
+        :actions="manageActions"
         cancel-text="取消"
-        @select="onDeleteSelect"
+        @select="onManageSelect"
       />
 
-      <!-- 删除密码弹窗 -->
-      <van-popup v-model:show="showDeletePopup" round>
-        <div class="delete-popup">
-          <h3>删除商品</h3>
-          <p>请输入发布时设置的管理密码</p>
-          <van-field
-            v-model="deletePassword"
-            type="password"
-            placeholder="请输入管理密码"
-            maxlength="6"
-          />
-          <div class="delete-btns">
-            <van-button @click="showDeletePopup = false">取消</van-button>
-            <van-button type="danger" @click="confirmDelete">确认删除</van-button>
+      <!-- 修改商品弹窗 -->
+      <van-popup v-model:show="showEditPopup" round position="bottom" :style="{ height: '80%' }">
+        <div class="edit-popup">
+          <div class="edit-header">
+            <span @click="showEditPopup = false">取消</span>
+            <h3>修改商品信息</h3>
+            <span class="save-btn" @click="saveEdit">保存</span>
+          </div>
+          <div class="edit-form">
+            <van-field v-model="editForm.title" label="标题" placeholder="请输入商品标题" maxlength="50" />
+            <van-field v-model="editForm.price" label="价格" type="number" placeholder="请输入价格" />
+            <van-field v-model="editForm.condition" label="新旧程度" readonly is-link @click="showConditionPicker = true" />
+            <van-field v-model="editForm.description" label="描述" type="textarea" placeholder="请输入商品描述" rows="4" autosize />
           </div>
         </div>
+      </van-popup>
+
+      <!-- 新旧程度选择器 -->
+      <van-popup v-model:show="showConditionPicker" position="bottom" round>
+        <van-picker
+          :columns="conditionColumns"
+          @confirm="onConditionConfirm"
+          @cancel="showConditionPicker = false"
+        />
       </van-popup>
     </template>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { showToast, showImagePreview, showSuccessToast } from 'vant'
-import { getItemDetail, deleteItem } from '@/api'
+import { showToast, showImagePreview, showSuccessToast, showConfirmDialog } from 'vant'
+import { getItemDetail, deleteItem, updateItem } from '@/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -130,13 +138,37 @@ const router = useRouter()
 const item = ref(null)
 const loading = ref(true)
 const showContactPopup = ref(false)
-const showDeleteSheet = ref(false)
-const showDeletePopup = ref(false)
-const deletePassword = ref('')
+const showManageSheet = ref(false)
+const showEditPopup = ref(false)
+const showConditionPicker = ref(false)
 
-const deleteActions = [
-  { name: '删除商品', color: '#ee0a24' }
+// 修改表单
+const editForm = ref({
+  title: '',
+  price: '',
+  condition: '',
+  description: ''
+})
+
+const conditionColumns = [
+  { text: '全新', value: '全新' },
+  { text: '九五新', value: '九五新' },
+  { text: '九成新', value: '九成新' },
+  { text: '八成新', value: '八成新' },
+  { text: '七成新及以下', value: '七成新及以下' }
 ]
+
+// 管理操作
+const manageActions = computed(() => {
+  const actions = []
+  if (item.value?.canEdit) {
+    actions.push({ name: '修改商品信息', value: 'edit' })
+  }
+  if (item.value?.canDelete) {
+    actions.push({ name: '删除商品', value: 'delete', color: '#ee0a24' })
+  }
+  return actions
+})
 
 // 获取商品详情
 const fetchDetail = async () => {
@@ -175,7 +207,13 @@ const formatDate = (dateStr) => {
 const previewImage = (index) => {
   showImagePreview({
     images: item.value.image_urls,
-    startPosition: index
+    startPosition: index,
+    closeable: true,
+    closeIcon: 'cross',
+    closeIconPosition: 'top-right',
+    showIndex: true,
+    showIndicators: true,
+    loop: true
   })
 }
 
@@ -201,24 +239,71 @@ const copyContact = async () => {
   }
 }
 
-// 删除操作
-const onDeleteSelect = () => {
-  showDeleteSheet.value = false
-  showDeletePopup.value = true
-  deletePassword.value = ''
+// 管理操作选择
+const onManageSelect = (action) => {
+  showManageSheet.value = false
+  if (action.value === 'edit') {
+    // 打开编辑弹窗，填充当前数据
+    editForm.value = {
+      title: item.value.title,
+      price: item.value.price,
+      condition: item.value.condition,
+      description: item.value.description || ''
+    }
+    showEditPopup.value = true
+  } else if (action.value === 'delete') {
+    // 二次确认删除
+    showConfirmDialog({
+      title: '确认删除',
+      message: '确定要删除这个商品吗？删除后将无法恢复。',
+      confirmButtonColor: '#ee0a24'
+    }).then(() => {
+      confirmDelete()
+    }).catch(() => {})
+  }
 }
 
-// 确认删除
-const confirmDelete = async () => {
-  if (!deletePassword.value) {
-    showToast('请输入管理密码')
+// 新旧程度选择
+const onConditionConfirm = ({ selectedOptions }) => {
+  editForm.value.condition = selectedOptions[0].value
+  showConditionPicker.value = false
+}
+
+// 保存修改
+const saveEdit = async () => {
+  if (!editForm.value.title.trim()) {
+    showToast('请输入商品标题')
+    return
+  }
+  if (!editForm.value.price || parseFloat(editForm.value.price) < 0) {
+    showToast('请输入有效价格')
+    return
+  }
+  if (parseFloat(editForm.value.price) > 100000000) {
+    showToast('价格不能超过1亿元')
     return
   }
   
   try {
-    await deleteItem(route.params.id, deletePassword.value)
+    await updateItem(route.params.id, {
+      title: editForm.value.title,
+      price: parseFloat(editForm.value.price),
+      condition: editForm.value.condition,
+      description: editForm.value.description
+    })
+    showSuccessToast('修改成功')
+    showEditPopup.value = false
+    fetchDetail() // 刷新详情
+  } catch (error) {
+    // 错误已在拦截器处理
+  }
+}
+
+// 确认删除
+const confirmDelete = async () => {
+  try {
+    await deleteItem(route.params.id)
     showSuccessToast('删除成功')
-    showDeletePopup.value = false
     router.replace('/')
   } catch (error) {
     // 错误已在拦截器处理
@@ -377,32 +462,314 @@ onMounted(() => {
   color: #999;
 }
 
-/* 删除弹窗 */
-.delete-popup {
-  padding: 24px;
-  width: 300px;
-}
-
-.delete-popup h3 {
-  font-size: 18px;
-  text-align: center;
-  margin-bottom: 8px;
-}
-
-.delete-popup p {
-  text-align: center;
-  color: #666;
-  font-size: 14px;
-  margin-bottom: 16px;
-}
-
-.delete-btns {
+/* 编辑弹窗 */
+.edit-popup {
+  height: 100%;
   display: flex;
-  gap: 12px;
-  margin-top: 20px;
+  flex-direction: column;
 }
 
-.delete-btns .van-button {
+.edit-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.edit-header h3 {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.edit-header span {
+  font-size: 14px;
+  color: #666;
+  cursor: pointer;
+}
+
+.edit-header .save-btn {
+  color: #1989fa;
+  font-weight: 500;
+}
+
+.edit-form {
   flex: 1;
+  overflow-y: auto;
+  padding: 12px 0;
+}
+
+/* 移动端适配 */
+@media screen and (max-width: 768px) {
+  /* 图片轮播 */
+  .image-swipe {
+    height: 280px;
+  }
+  
+  /* 商品信息 */
+  .item-info {
+    padding: 12px;
+  }
+  
+  .price {
+    font-size: 20px;
+  }
+  
+  .item-title {
+    font-size: 15px;
+    margin: 8px 0 6px;
+  }
+  
+  .item-meta {
+    font-size: 11px;
+  }
+  
+  .item-dorm {
+    margin-top: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  
+  /* 商品描述 */
+  .item-desc {
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+  
+  .item-desc h3 {
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+  
+  .item-desc p {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  
+  /* 管理入口 */
+  .delete-entry {
+    padding: 12px;
+    font-size: 13px;
+  }
+  
+  /* 底部操作栏 */
+  .bottom-bar {
+    padding: 10px 12px;
+  }
+  
+  .bottom-bar .van-button {
+    height: 40px;
+    font-size: 14px;
+  }
+  
+  /* 联系方式弹窗 */
+  .contact-popup {
+    padding: 20px;
+  }
+  
+  .contact-popup h3 {
+    font-size: 16px;
+    margin-bottom: 12px;
+  }
+  
+  .contact-info {
+    padding: 12px;
+    font-size: 15px;
+    gap: 10px;
+  }
+  
+  .contact-tip {
+    margin-top: 12px;
+    font-size: 11px;
+  }
+  
+  /* 编辑弹窗 */
+  .edit-header {
+    padding: 12px;
+  }
+  
+  .edit-header h3 {
+    font-size: 15px;
+  }
+  
+  .edit-header span {
+    font-size: 13px;
+  }
+  
+  .edit-form {
+    padding: 10px 0;
+  }
+  
+  /* 标签调整 */
+  :deep(.van-tag) {
+    font-size: 11px;
+    padding: 2px 6px;
+  }
+}
+/* 导航栏修复 - 增大标题和箭头 */
+:deep(.van-nav-bar__title) {
+  line-height: 1.5;
+  padding: 8px 0;
+  overflow: visible;
+  font-size: 18px !important;
+  font-weight: 500;
+}
+
+:deep(.van-nav-bar) {
+  height: auto;
+  min-height: 50px;
+  padding: 10px 16px;
+}
+
+:deep(.van-nav-bar__left) {
+  padding-right: 12px;
+}
+
+:deep(.van-nav-bar__arrow) {
+  font-size: 20px !important;
+  margin-right: 4px;
+}
+
+/* 手机端导航栏加大 */
+@media screen and (max-width: 768px) {
+  :deep(.van-nav-bar__title) {
+    font-size: 20px !important;
+    font-weight: 600;
+  }
+  
+  :deep(.van-nav-bar) {
+    min-height: 56px;
+    padding: 12px 16px;
+  }
+  
+  :deep(.van-nav-bar__arrow) {
+    font-size: 24px !important;
+    margin-right: 8px;
+  }
+  
+  :deep(.van-nav-bar__left) {
+    padding-right: 16px;
+    min-width: 48px;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* 价格和新旧程度背景修复 - 增大背景 */
+.price-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.price {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);
+  color: white;
+  padding: 10px 18px !important;
+  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  font-weight: bold;
+  box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+}
+
+:deep(.van-tag) {
+  padding: 8px 14px !important;
+  font-size: 13px !important;
+  border-radius: 16px;
+}
+
+/* 管理商品弹窗修复 - 增大文字和防止重叠 */
+:deep(.van-action-sheet__item) {
+  padding: 18px 20px !important;
+  line-height: 1.6 !important;
+  height: auto !important;
+  min-height: 56px !important;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+:deep(.van-action-sheet__name) {
+  line-height: 1.5 !important;
+  font-size: 16px !important;
+  margin-bottom: 4px;
+  display: block;
+  width: 100%;
+}
+
+:deep(.van-action-sheet__description) {
+  margin-top: 6px !important;
+  line-height: 1.4 !important;
+  font-size: 13px !important;
+  color: #969799;
+  display: block;
+  width: 100%;
+  white-space: normal;
+  word-break: break-word;
+}
+
+/* 修复表单弹窗 */
+:deep(.van-dialog__header) {
+  padding-top: 24px;
+  line-height: 1.5;
+}
+
+:deep(.van-dialog__message) {
+  padding: 20px 24px;
+  line-height: 1.5;
+  overflow: visible;
+}
+
+:deep(.van-field__label) {
+  display: flex;
+  align-items: center;
+  line-height: 24px;
+}
+
+:deep(.van-field__control) {
+  line-height: 24px;
+}
+
+/* 修复Toast文字竖排 - 强制横向显示 */
+:deep(.van-toast) {
+  word-break: keep-all !important;
+  white-space: nowrap !important;
+  min-width: 120px !important;
+  max-width: 80% !important;
+}
+
+:deep(.van-toast__text) {
+  display: inline-block !important;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+}
+
+/* 修复编辑弹窗中的描述显示不全 */
+:deep(.van-popup--bottom) {
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.edit-form :deep(.van-field__control) {
+  min-height: 60px;
+  max-height: 200px;
+  overflow-y: auto;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.edit-form :deep(textarea.van-field__control) {
+  min-height: 100px !important;
+  padding: 8px;
+  line-height: 1.5;
 }
 </style>

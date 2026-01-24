@@ -74,19 +74,6 @@
           @click="showConditionPicker = true"
         />
 
-        <!-- 宿舍位置 -->
-        <van-field
-          v-model="form.dormitory"
-          label="宿舍位置"
-          placeholder="如：沁苑东13舍703"
-          maxlength="30"
-          required
-        >
-          <template #left-icon>
-            <van-icon name="location-o" />
-          </template>
-        </van-field>
-
         <!-- 描述 -->
         <van-field
           v-model="form.description"
@@ -98,37 +85,11 @@
           rows="4"
           autosize
         />
-
-        <!-- 联系方式 -->
-        <van-field
-          v-model="form.contact_info"
-          label="联系方式"
-          placeholder="微信号或QQ号"
-          required
-        >
-          <template #left-icon>
-            <van-icon name="chat-o" />
-          </template>
-        </van-field>
-
-        <!-- 管理密码 -->
-        <van-field
-          v-model="form.admin_password"
-          label="管理密码"
-          type="password"
-          placeholder="4-6位密码，用于删除商品"
-          maxlength="6"
-          required
-        >
-          <template #left-icon>
-            <van-icon name="lock" />
-          </template>
-        </van-field>
       </van-cell-group>
 
-      <div class="password-tip">
+      <div class="info-tip">
         <van-icon name="info-o" />
-        <span>请牢记管理密码，成交后可凭密码删除商品</span>
+        <span>商品的宿舍位置和联系方式将自动使用您的个人信息</span>
       </div>
 
       <!-- 提交按钮 -->
@@ -181,10 +142,7 @@ const form = ref({
   price: '',
   category_id: '',
   condition: '',
-  dormitory: '',
-  description: '',
-  contact_info: '',
-  admin_password: ''
+  description: ''
 })
 
 // 文件列表
@@ -321,8 +279,14 @@ const validateForm = () => {
     return false
   }
   
-  if (!form.value.price || parseFloat(form.value.price) <= 0) {
-    showToast('请输入有效价格')
+  const price = parseFloat(form.value.price)
+  if (isNaN(price) || price < 0) {
+    showToast('价格必须大于等于0元')
+    return false
+  }
+  
+  if (price > 100000000) {
+    showToast('价格不能超过1亿元')
     return false
   }
   
@@ -333,21 +297,6 @@ const validateForm = () => {
   
   if (!form.value.condition) {
     showToast('请选择新旧程度')
-    return false
-  }
-  
-  if (!form.value.dormitory.trim()) {
-    showToast('请输入宿舍位置')
-    return false
-  }
-  
-  if (!form.value.contact_info.trim()) {
-    showToast('请输入联系方式')
-    return false
-  }
-  
-  if (!form.value.admin_password || form.value.admin_password.length < 4) {
-    showToast('请输入4-6位管理密码')
     return false
   }
   
@@ -370,10 +319,7 @@ const handleSubmit = async () => {
       price: parseFloat(form.value.price),
       category_id: form.value.category_id,
       condition: form.value.condition,
-      dormitory: form.value.dormitory,
       description: form.value.description,
-      contact_info: form.value.contact_info,
-      admin_password: form.value.admin_password,
       image_urls: imageUrls
     })
     
@@ -430,8 +376,8 @@ onMounted(() => {
   margin-top: 4px;
 }
 
-/* 密码提示 */
-.password-tip {
+/* 信息提示 */
+.info-tip {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -468,5 +414,189 @@ onMounted(() => {
 :deep(.van-uploader__preview-image) {
   width: 80px;
   height: 80px;
+}
+
+/* 移动端适配 */
+@media screen and (max-width: 768px) {
+  .publish-page {
+    padding-bottom: 60px;
+  }
+  
+  /* 导航栏标题样式修复 */
+  :deep(.van-nav-bar__title) {
+    line-height: 1.5;
+    padding: 8px 0;
+    overflow: visible;
+    font-size: 16px;
+  }
+  
+  :deep(.van-nav-bar) {
+    height: auto;
+    min-height: 46px;
+    padding: 8px 16px;
+  }
+  
+  /* 基础表单 */
+  .base-form {
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+  
+  .base-form h3 {
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+  
+  /* 上传区域 */
+  .upload-section {
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+  
+  .upload-placeholder {
+    width: 70px;
+    height: 70px;
+    font-size: 11px;
+  }
+  
+  .upload-tip {
+    font-size: 9px;
+    margin-top: 3px;
+  }
+  
+  /* 信息提示 */
+  .info-tip {
+    padding: 10px 12px;
+    font-size: 11px;
+  }
+  
+  /* 提交按钮 */
+  .submit-section {
+    padding: 10px 12px;
+  }
+  
+  .submit-section .van-button {
+    height: 40px;
+    font-size: 14px;
+  }
+  
+  /* Vant 组件调整 */
+  :deep(.van-cell) {
+    padding: 10px 12px;
+  }
+  
+  :deep(.van-field__label) {
+    font-size: 13px;
+    width: 70px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  
+  :deep(.van-field__value) {
+    font-size: 13px;
+  }
+  
+  :deep(.van-field__body) {
+    line-height: 1.5;
+  }
+  
+  :deep(.van-field__body textarea) {
+    min-height: 80px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  
+  /* 描述字段的提示文字行高修复 */
+  :deep(.van-field__word-limit) {
+    line-height: 1.4;
+    margin-top: 4px;
+    position: absolute;
+    right: 12px;
+    bottom: 8px;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    color: #999;
+    z-index: 10;
+  }
+  
+  /* 手机端字数统计位置调整 */
+  @media screen and (max-width: 768px) {
+    :deep(.van-field__word-limit) {
+      right: 8px;
+      bottom: 6px;
+      padding: 1px 4px;
+      font-size: 10px;
+    }
+    
+    :deep(.van-field__control) {
+      padding-right: 50px !important;
+    }
+    
+    :deep(.van-field__body textarea) {
+      padding-right: 50px !important;
+    }
+  }
+  
+  /* 确保输入框有足够的右边距，避免被字数统计遮挡 */
+  :deep(.van-field__control) {
+    padding-right: 60px !important;
+  }
+  
+  :deep(.van-field__body textarea) {
+    padding-right: 60px !important;
+  }
+  
+  /* 电脑端字数统计位置调整 */
+  @media screen and (min-width: 769px) {
+    :deep(.van-field__word-limit) {
+      right: 16px;
+      bottom: 12px;
+      padding: 3px 8px;
+      font-size: 12px;
+    }
+    
+    :deep(.van-field__control) {
+      padding-right: 80px !important;
+    }
+    
+    :deep(.van-field__body textarea) {
+      padding-right: 80px !important;
+    }
+  }
+  
+  :deep(.van-uploader__wrapper) {
+    gap: 6px;
+  }
+  
+  :deep(.van-uploader__preview-image) {
+    width: 70px;
+    height: 70px;
+  }
+  
+  :deep(.van-uploader__upload) {
+    width: 70px;
+    height: 70px;
+  }
+}
+/* 表单对齐修复 */
+:deep(.van-field__label) {
+  display: flex;
+  align-items: center;
+  line-height: 24px;
+}
+
+:deep(.van-field__value) {
+  display: flex;
+  align-items: center;
+}
+
+:deep(.van-field__control) {
+  line-height: 24px;
+}
+
+:deep(.van-field__body) {
+  align-items: center;
 }
 </style>

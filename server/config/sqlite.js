@@ -1,6 +1,7 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
+const bcrypt = require('bcryptjs');
 
 // 数据库文件路径
 const dbPath = path.join(__dirname, '..', 'data', 'campus.db');
@@ -16,9 +17,55 @@ const db = new Database(dbPath);
 
 // 启用外键约束
 db.pragma('journal_mode = WAL');
+db.pragma('foreign_keys = ON');
+
+// bcrypt 加密轮数（越高越安全但越慢，10-12是推荐值）
+const BCRYPT_ROUNDS = 10;
+
+// 密码加密函数（使用 bcrypt）
+function hashPassword(password) {
+  return bcrypt.hashSync(password, BCRYPT_ROUNDS);
+}
+
+// 密码验证函数
+function verifyPassword(password, hashedPassword) {
+  // 兼容旧的 SHA256 密码（用于迁移）
+  if (hashedPassword.length === 64) {
+    // 旧的 SHA256 格式
+    const crypto = require('crypto');
+    const oldHash = crypto.createHash('sha256').update(password + 'campus_salt_2024').digest('hex');
+    return oldHash === hashedPassword;
+  }
+  // 新的 bcrypt 格式
+  return bcrypt.compareSync(password, hashedPassword);
+}
 
 // 初始化数据库表
 function initDatabase() {
+  // 创建用户表
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username VARCHAR(50) NOT NULL UNIQUE,
+      password VARCHAR(64) NOT NULL,
+      dorm_location VARCHAR(100) DEFAULT '',
+      contact_info VARCHAR(100) DEFAULT '',
+      role VARCHAR(20) DEFAULT 'user',
+      status INTEGER DEFAULT 1,
+      token_version INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // 添加 token_version 字段（兼容已有数据库）
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 0`);
+    console.log('✅ 添加 token_version 字段');
+  } catch (e) {
+    // 字段已存在，忽略错误
+  }
+
   // 创建商品表
   db.exec(`
     CREATE TABLE IF NOT EXISTS items (
@@ -28,14 +75,16 @@ function initDatabase() {
       category_id INTEGER NOT NULL,
       description TEXT,
       contact_info VARCHAR(100) NOT NULL,
-      admin_password VARCHAR(20) NOT NULL,
+      admin_password VARCHAR(20) DEFAULT '',
       image_urls TEXT NOT NULL,
       condition VARCHAR(20) DEFAULT '',
       dormitory VARCHAR(50) DEFAULT '',
       views INTEGER DEFAULT 0,
       status INTEGER DEFAULT 1,
+      user_id INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
     )
   `);
 
@@ -50,6 +99,13 @@ function initDatabase() {
   try {
     db.exec(`ALTER TABLE items ADD COLUMN views INTEGER DEFAULT 0`);
     console.log('✅ 添加 views 字段');
+  } catch (e) {
+    // 字段已存在，忽略错误
+  }
+
+  try {
+    db.exec(`ALTER TABLE items ADD COLUMN user_id INTEGER`);
+    console.log('✅ 添加 user_id 字段');
   } catch (e) {
     // 字段已存在，忽略错误
   }
@@ -77,6 +133,15 @@ function initDatabase() {
     insertCategory.run(5, '运动户外', 'fire-o', 5);
     insertCategory.run(6, '其他', 'more-o', 6);
     console.log('✅ 分类数据初始化完成');
+  }
+
+  // 检查是否有管理员账户
+  const adminCount = db.prepare("SELECT COUNT(*) as count FROM users WHERE role = 'admin'").get();
+  if (adminCount.count === 0) {
+    // 创建默认管理员账户
+    const insertUser = db.prepare('INSERT INTO users (username, password, dorm_location, contact_info, role) VALUES (?, ?, ?, ?, ?)');
+    insertUser.run('admin', hashPassword('admin123'), '管理员', '系统管理员', 'admin');
+    console.log('✅ 默认管理员账户已创建 (用户名: admin, 密码: admin123)');
   }
 
   // 检查是否有测试商品
@@ -139,5 +204,7 @@ async function testConnection() {
 module.exports = {
   db,
   pool,
-  testConnection
+  testConnection,
+  hashPassword,
+  verifyPassword
 };
