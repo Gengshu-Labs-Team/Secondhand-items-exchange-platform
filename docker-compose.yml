@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  # Node.js 后端服务（使用 SQLite，无需 MySQL）
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    container_name: campus-server
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - USE_SQLITE=true
+    volumes:
+      # 数据持久化 - 数据库文件
+      - ./persistent-data/database:/app/server/data
+      # 数据持久化 - 上传的图片
+      - ./persistent-data/uploads:/app/server/uploads
+    ports:
+      - "3001:3001"
+    networks:
+      - campus-network
+
+  # Nginx 前端服务
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    container_name: campus-client
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - server
+    networks:
+      - campus-network
+
+networks:
+  campus-network:
+    driver: bridge
+  uploads_data:

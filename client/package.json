@@ -1,0 +1,24 @@
+{
+  "name": "campus-secondhand-client",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "axios": "^1.6.2",
+    "vant": "^4.8.0",
+    "vue": "^3.3.11",
+    "vue-router": "^4.2.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^4.5.2",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32",
+    "postcss-px-to-viewport": "^1.1.1",
+    "vite": "^5.0.10"
+  }
+}
