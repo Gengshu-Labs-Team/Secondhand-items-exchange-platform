@@ -15,11 +15,14 @@ export function publishItem(data) {
   return request.post('/items', data)
 }
 
-// 删除商品
-export function deleteItem(id, adminPassword) {
-  return request.delete(`/items/${id}`, {
-    data: { admin_password: adminPassword }
-  })
+// 更新商品信息
+export function updateItem(id, data) {
+  return request.put(`/items/${id}`, data)
+}
+
+// 删除商品（不再需要密码）
+export function deleteItem(id) {
+  return request.delete(`/items/${id}`)
 }
 
 // 获取分类列表

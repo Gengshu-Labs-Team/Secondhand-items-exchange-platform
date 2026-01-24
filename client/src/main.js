@@ -24,7 +24,11 @@ import {
   Picker,
   Loading,
   Empty,
-  ActionSheet
+  ActionSheet,
+  Search,
+  Pagination,
+  DropdownMenu,
+  DropdownItem
 } from 'vant'
 
 // Vant 样式
@@ -55,6 +59,10 @@ app.use(Picker)
 app.use(Loading)
 app.use(Empty)
 app.use(ActionSheet)
+app.use(Search)
+app.use(Pagination)
+app.use(DropdownMenu)
+app.use(DropdownItem)
 
 app.use(router)
 app.mount('#app')

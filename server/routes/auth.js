@@ -29,6 +29,12 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ success: false, message: '请填写宿舍位置' });
     }
 
+    // 宿舍格式验证
+    const validDorms = ['紫菘', '沁苑', '韵苑'];
+    if (!validDorms.some(dorm => dorm_location.includes(dorm))) {
+      return res.status(400).json({ success: false, message: '宿舍位置必须包含"紫菘"、"沁苑"或"韵苑"' });
+    }
+
     if (!contact_info) {
       return res.status(400).json({ success: false, message: '请填写联系方式' });
     }
@@ -46,13 +52,13 @@ router.post('/register', async (req, res) => {
     // 加密密码并创建用户
     const hashedPassword = hashPassword(password);
     const [result] = await pool.execute(
-      'INSERT INTO users (username, password, dorm_location, contact_info, role) VALUES (?, ?, ?, ?, ?)',
-      [username, hashedPassword, dorm_location, contact_info, 'user']
+      'INSERT INTO users (username, password, dorm_location, contact_info, role, token_version) VALUES (?, ?, ?, ?, ?, ?)',
+      [username, hashedPassword, dorm_location, contact_info, 'user', 1]
     );
 
-    // 生成 JWT
+    // 生成 JWT（包含 token 版本）
     const token = jwt.sign(
-      { userId: result.insertId, username, role: 'user' },
+      { userId: result.insertId, username, role: 'user', tokenVersion: 1 },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
@@ -88,7 +94,7 @@ router.post('/login', async (req, res) => {
 
     // 查找用户
     const [users] = await pool.execute(
-      'SELECT id, username, password, dorm_location, contact_info, role, status FROM users WHERE username = ?',
+      'SELECT id, username, password, dorm_location, contact_info, role, status, token_version FROM users WHERE username = ?',
       [username]
     );
 
@@ -108,9 +114,16 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ success: false, message: '用户名或密码错误' });
     }
 
-    // 生成 JWT
+    // 更新 token 版本（使其他设备上的 token 失效）
+    const newTokenVersion = (user.token_version || 0) + 1;
+    await pool.execute(
+      'UPDATE users SET token_version = ? WHERE id = ?',
+      [newTokenVersion, user.id]
+    );
+
+    // 生成 JWT（包含 token 版本）
     const token = jwt.sign(
-      { userId: user.id, username: user.username, role: user.role },
+      { userId: user.id, username: user.username, role: user.role, tokenVersion: newTokenVersion },
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );

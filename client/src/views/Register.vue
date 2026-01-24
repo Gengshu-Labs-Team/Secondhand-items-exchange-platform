@@ -116,9 +116,23 @@ const confirmPasswordValidator = (val) => {
   return val === form.value.password
 }
 
+// 宿舍格式验证
+const dormValidator = (val) => {
+  if (!val) return false
+  // 必须包含"紫菘"、"沁苑"或"韵苑"之一
+  const validDorms = ['紫菘', '沁苑', '韵苑']
+  return validDorms.some(dorm => val.includes(dorm))
+}
+
 const onSubmit = async () => {
   if (form.value.password !== form.value.confirmPassword) {
     showFailToast('两次密码不一致')
+    return
+  }
+  
+  // 宿舍格式验证
+  if (!dormValidator(form.value.dorm_location)) {
+    showFailToast('宿舍位置必须包含"紫菘"、"沁苑"或"韵苑"')
     return
   }
   

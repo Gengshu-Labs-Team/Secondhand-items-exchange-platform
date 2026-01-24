@@ -6,11 +6,17 @@ const { authMiddleware, optionalAuthMiddleware, adminMiddleware } = require('../
 // 管理后台 - 获取所有商品（包括已下架）- 需要管理员权限
 router.get('/admin', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const { category_id, status, page = 1, limit = 10 } = req.query;
+    const { category_id, status, page = 1, limit = 10, keyword } = req.query;
     const offset = (page - 1) * limit;
     
     let sql = 'SELECT id, title, price, category_id, image_urls, status, created_at FROM items WHERE 1=1';
     const params = [];
+    
+    // 关键字搜索（标题）
+    if (keyword && keyword.trim()) {
+      sql += ' AND title LIKE ?';
+      params.push(`%${keyword.trim()}%`);
+    }
     
     if (status !== undefined && status !== 'all') {
       sql += ' AND status = ?';
@@ -30,6 +36,13 @@ router.get('/admin', authMiddleware, adminMiddleware, async (req, res) => {
     // 获取总数
     let countSql = 'SELECT COUNT(*) as total FROM items WHERE 1=1';
     const countParams = [];
+    
+    // 关键字搜索（标题）
+    if (keyword && keyword.trim()) {
+      countSql += ' AND title LIKE ?';
+      countParams.push(`%${keyword.trim()}%`);
+    }
+    
     if (status !== undefined && status !== 'all') {
       countSql += ' AND status = ?';
       countParams.push(parseInt(status));
@@ -40,13 +53,27 @@ router.get('/admin', authMiddleware, adminMiddleware, async (req, res) => {
     }
     const [countResult] = await pool.execute(countSql, countParams);
     
+    // 获取全部商品统计（不带筛选条件）
+    const [statsResult] = await pool.execute(
+      `SELECT 
+        COUNT(*) as totalAll,
+        SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as online,
+        SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) as offline
+       FROM items`
+    );
+    
     res.json({
       success: true,
       data: {
         items: rows,
         total: countResult[0].total,
         page: parseInt(page),
-        limit: parseInt(limit)
+        limit: parseInt(limit),
+        stats: {
+          total: statsResult[0].totalAll || 0,
+          online: statsResult[0].online || 0,
+          offline: statsResult[0].offline || 0
+        }
       }
     });
   } catch (error) {
@@ -206,11 +233,11 @@ router.get('/:id', optionalAuthMiddleware, async (req, res) => {
     const item = rows[0];
     item.image_urls = item.image_urls ? JSON.parse(item.image_urls) : [];
     
-    // 使用发布者的联系方式（如果商品没有单独设置的话优先使用用户信息）
-    if (!item.contact_info && item.user_contact) {
+    // 【重要】始终使用发布者的最新联系方式和宿舍地址（跟随用户设定）
+    if (item.user_contact) {
       item.contact_info = item.user_contact;
     }
-    if (!item.dormitory && item.user_dorm) {
+    if (item.user_dorm) {
       item.dormitory = item.user_dorm;
     }
     
@@ -254,8 +281,17 @@ router.post('/', authMiddleware, async (req, res) => {
     const user = users[0];
     
     // 参数校验
-    if (!title || !price || !category_id) {
+    if (!title || !price === undefined || !category_id) {
       return res.status(400).json({ success: false, message: '请填写商品标题、价格和分类' });
+    }
+    
+    // 价格范围验证
+    if (price < 0) {
+      return res.status(400).json({ success: false, message: '价格必须大于等于0元' });
+    }
+    
+    if (price > 100000000) {
+      return res.status(400).json({ success: false, message: '价格不能超过1亿元' });
     }
     
     if (!condition) {
@@ -292,6 +328,55 @@ router.post('/', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('发布商品失败:', error);
     res.status(500).json({ success: false, message: '发布商品失败' });
+  }
+});
+
+// 更新商品信息（发布者或管理员）
+router.put('/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, price, condition, description } = req.body;
+    const userId = req.user.userId;
+    const isAdmin = req.user.role === 'admin';
+    
+    // 检查商品是否存在
+    const [rows] = await pool.execute(
+      'SELECT user_id FROM items WHERE id = ?',
+      [id]
+    );
+    
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: '商品不存在' });
+    }
+    
+    // 检查权限
+    if (rows[0].user_id !== userId && !isAdmin) {
+      return res.status(403).json({ success: false, message: '没有权限修改此商品' });
+    }
+    
+    // 参数校验
+    if (!title || !title.trim()) {
+      return res.status(400).json({ success: false, message: '请填写商品标题' });
+    }
+    
+    if (price === undefined || price < 0) {
+      return res.status(400).json({ success: false, message: '请填写有效价格' });
+    }
+    
+    if (price > 100000000) {
+      return res.status(400).json({ success: false, message: '价格不能超过1亿元' });
+    }
+    
+    // 更新商品
+    await pool.execute(
+      `UPDATE items SET title = ?, price = ?, \`condition\` = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [title.trim(), price, condition || '', description || '', id]
+    );
+    
+    res.json({ success: true, message: '修改成功' });
+  } catch (error) {
+    console.error('更新商品失败:', error);
+    res.status(500).json({ success: false, message: '更新商品失败' });
   }
 });
 

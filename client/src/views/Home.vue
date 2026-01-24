@@ -544,8 +544,8 @@ onUnmounted(() => {
 }
 
 .avatar-circle {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: #fff;
@@ -842,8 +842,8 @@ onUnmounted(() => {
   position: fixed;
   right: 20px;
   bottom: 80px;
-  width: 56px;
-  height: 56px;
+  width: 60px;
+  height: 60px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 50%;
   display: flex;
@@ -855,7 +855,59 @@ onUnmounted(() => {
   transition: transform 0.2s;
 }
 
+.publish-btn .van-icon {
+  font-size: 24px !important;
+}
+
 .publish-btn:active {
   transform: scale(0.95);
+}
+
+/* 手机端适配 */
+@media screen and (max-width: 768px) {
+  .search-bar {
+    padding: 12px 16px;
+  }
+  
+  .search-input {
+    font-size: 16px;
+  }
+  
+  .avatar-circle {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+  
+  .publish-btn {
+    width: 64px;
+    height: 64px;
+  }
+  
+  .publish-btn .van-icon {
+    font-size: 28px !important;
+  }
+  
+  .card-title {
+    font-size: 15px;
+  }
+  
+  .card-desc {
+    font-size: 13px;
+  }
+  
+  .card-price {
+    font-size: 18px;
+  }
+  
+  .sort-btn {
+    font-size: 14px !important;
+    padding: 6px 12px !important;
+  }
+  
+  .dorm-btn {
+    font-size: 14px !important;
+    padding: 6px 12px !important;
+  }
 }
 </style>

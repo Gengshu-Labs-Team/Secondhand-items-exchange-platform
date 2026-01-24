@@ -279,8 +279,14 @@ const validateForm = () => {
     return false
   }
   
-  if (!form.value.price || parseFloat(form.value.price) <= 0) {
-    showToast('请输入有效价格')
+  const price = parseFloat(form.value.price)
+  if (isNaN(price) || price < 0) {
+    showToast('价格必须大于等于0元')
+    return false
+  }
+  
+  if (price > 100000000) {
+    showToast('价格不能超过1亿元')
     return false
   }
   

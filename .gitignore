@@ -35,7 +35,15 @@ persistent-data/
 # 备份文件
 backups/
 
-# SQLite 数据库
+# ====== 数据库文件（重要：防止覆盖生产数据）======
+# SQLite 数据库文件
 server/data/*.db
 server/data/*.db-wal
 server/data/*.db-shm
+
+# 整个数据目录（可选，更严格的保护）
+# server/data/
+
+# ====== 上传文件（可选）======
+# 如果不想同步用户上传的图片，取消下面的注释
+# server/uploads/

@@ -52,10 +52,19 @@ function initDatabase() {
       contact_info VARCHAR(100) DEFAULT '',
       role VARCHAR(20) DEFAULT 'user',
       status INTEGER DEFAULT 1,
+      token_version INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // 添加 token_version 字段（兼容已有数据库）
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 0`);
+    console.log('✅ 添加 token_version 字段');
+  } catch (e) {
+    // 字段已存在，忽略错误
+  }
 
   // 创建商品表
   db.exec(`

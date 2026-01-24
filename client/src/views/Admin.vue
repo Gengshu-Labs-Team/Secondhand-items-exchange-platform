@@ -26,6 +26,23 @@
           </div>
         </div>
 
+        <!-- 商品搜索栏 -->
+        <div class="search-bar">
+          <div class="search-wrapper">
+            <van-search 
+              v-model="itemKeyword" 
+              placeholder="🔍 输入商品标题搜索"
+              show-action
+              @search="onItemSearch"
+              @clear="onItemSearch"
+            >
+              <template #action>
+                <van-button type="primary" size="small" @click="onItemSearch">搜索</van-button>
+              </template>
+            </van-search>
+          </div>
+        </div>
+
         <!-- 筛选栏 -->
         <div class="filter-bar">
           <van-dropdown-menu>
@@ -101,17 +118,26 @@
                 </span>
               </div>
             </div>
-
-            <div class="pagination">
-              <van-pagination 
-                v-model="itemPage" 
-                :total-items="itemTotal" 
-                :items-per-page="10"
-                :show-page-size="3"
-                @change="fetchItems"
-              />
-            </div>
           </template>
+
+          <!-- 分页始终显示 -->
+          <div class="pagination" v-if="itemTotal > 0">
+            <van-pagination 
+              v-model="itemPage" 
+              :total-items="itemTotal" 
+              :items-per-page="10"
+              :show-page-size="5"
+              force-ellipses
+              @change="fetchItems"
+            >
+              <template #prev-text>
+                <span>上一页</span>
+              </template>
+              <template #next-text>
+                <span>下一页</span>
+              </template>
+            </van-pagination>
+          </div>
         </div>
       </van-tab>
 
@@ -134,12 +160,27 @@
 
         <!-- 用户搜索 -->
         <div class="search-bar">
-          <van-search 
-            v-model="userKeyword" 
-            placeholder="搜索用户名/宿舍/联系方式"
-            @search="fetchUsers"
-            @clear="fetchUsers"
-          />
+          <div class="search-wrapper">
+            <van-search 
+              v-model="userKeyword" 
+              placeholder="🔍 搜索用户名/宿舍/联系方式"
+              show-action
+              @search="onUserSearch"
+              @clear="onUserSearch"
+            >
+              <template #action>
+                <van-button type="primary" size="small" @click="onUserSearch">搜索</van-button>
+              </template>
+            </van-search>
+          </div>
+        </div>
+
+        <!-- 用户筛选栏 -->
+        <div class="filter-bar">
+          <van-dropdown-menu>
+            <van-dropdown-item v-model="userFilter.status" :options="userStatusOptions" @change="fetchUsers" />
+            <van-dropdown-item v-model="userFilter.role" :options="userRoleOptions" @change="fetchUsers" />
+          </van-dropdown-menu>
         </div>
 
         <!-- 用户列表 -->
@@ -196,17 +237,26 @@
                 </div>
               </div>
             </div>
-
-            <div class="pagination">
-              <van-pagination 
-                v-model="userPage" 
-                :total-items="userTotal" 
-                :items-per-page="10"
-                :show-page-size="3"
-                @change="fetchUsers"
-              />
-            </div>
           </template>
+
+          <!-- 分页始终显示 -->
+          <div class="pagination" v-if="userTotal > 0">
+            <van-pagination 
+              v-model="userPage" 
+              :total-items="userTotal" 
+              :items-per-page="10"
+              :show-page-size="5"
+              force-ellipses
+              @change="fetchUsers"
+            >
+              <template #prev-text>
+                <span>上一页</span>
+              </template>
+              <template #next-text>
+                <span>下一页</span>
+              </template>
+            </van-pagination>
+          </div>
         </div>
 
         <!-- 添加用户按钮 -->
@@ -300,6 +350,7 @@ const itemLoading = ref(false)
 const items = ref([])
 const itemTotal = ref(0)
 const itemPage = ref(1)
+const itemKeyword = ref('')
 const categories = ref([])
 
 const itemFilter = reactive({
@@ -323,11 +374,11 @@ const categoryOptions = computed(() => {
   ]
 })
 
-const itemStats = computed(() => ({
-  total: itemTotal.value,
-  online: items.value.filter(i => i.status === 1).length,
-  offline: items.value.filter(i => i.status === 0).length
-}))
+const itemStats = ref({
+  total: 0,
+  online: 0,
+  offline: 0
+})
 
 // ========== 用户管理 ==========
 const userLoading = ref(false)
@@ -335,6 +386,23 @@ const users = ref([])
 const userTotal = ref(0)
 const userPage = ref(1)
 const userKeyword = ref('')
+
+const userFilter = reactive({
+  status: 'all',
+  role: 'all'
+})
+
+const userStatusOptions = [
+  { text: '全部状态', value: 'all' },
+  { text: '正常', value: 1 },
+  { text: '已禁用', value: 0 }
+]
+
+const userRoleOptions = [
+  { text: '全部角色', value: 'all' },
+  { text: '普通用户', value: 'user' },
+  { text: '管理员', value: 'admin' }
+]
 
 const showEditUser = ref(false)
 const showAddUser = ref(false)
@@ -349,11 +417,11 @@ const roleOptions = [
   { text: '管理员', value: 'admin' }
 ]
 
-const userStats = computed(() => ({
-  total: userTotal.value,
-  active: users.value.filter(u => u.status === 1).length,
-  disabled: users.value.filter(u => u.status === 0).length
-}))
+const userStats = ref({
+  total: 0,
+  active: 0,
+  disabled: 0
+})
 
 // 监听添加用户
 watch(showAddUser, (val) => {
@@ -363,6 +431,17 @@ watch(showAddUser, (val) => {
     showAddUser.value = false
   }
 })
+
+// 搜索重置页码
+const onItemSearch = () => {
+  itemPage.value = 1
+  fetchItems()
+}
+
+const onUserSearch = () => {
+  userPage.value = 1
+  fetchUsers()
+}
 
 // ========== 商品相关方法 ==========
 const fetchItems = async () => {
@@ -378,10 +457,17 @@ const fetchItems = async () => {
     if (itemFilter.category !== 0) {
       params.category_id = itemFilter.category
     }
+    if (itemKeyword.value.trim()) {
+      params.keyword = itemKeyword.value.trim()
+    }
     
     const res = await request.get('/items/admin', { params })
     items.value = res.data.items
     itemTotal.value = res.data.total
+    // 更新商品统计数据
+    if (res.data.stats) {
+      itemStats.value = res.data.stats
+    }
   } catch (error) {
     console.error('获取商品列表失败:', error)
   } finally {
@@ -444,9 +530,23 @@ const fetchUsers = async () => {
       keyword: userKeyword.value
     }
     
+    // 添加状态筛选（排除 'all'）
+    if (userFilter.status !== 'all' && userFilter.status !== '') {
+      params.status = userFilter.status
+    }
+    
+    // 添加角色筛选（排除 'all'）
+    if (userFilter.role !== 'all' && userFilter.role !== '') {
+      params.role = userFilter.role
+    }
+    
     const res = await request.get('/users', { params })
     users.value = res.data.list
     userTotal.value = res.data.total
+    // 更新用户统计数据
+    if (res.data.stats) {
+      userStats.value = res.data.stats
+    }
   } catch (error) {
     console.error('获取用户列表失败:', error)
   } finally {
@@ -597,11 +697,55 @@ onMounted(() => {
 /* 筛选栏 */
 .filter-bar {
   background: #fff;
+  border-bottom: 1px solid #eee;
 }
 
 /* 搜索栏 */
 .search-bar {
   background: #fff;
+  padding: 12px 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.search-wrapper {
+  background: #f7f8fa;
+  border-radius: 24px;
+  overflow: hidden;
+  border: 2px solid #667eea;
+  display: flex;
+  align-items: center;
+}
+
+.search-bar :deep(.van-search) {
+  flex: 1;
+  padding: 0;
+  background: transparent;
+}
+
+.search-bar :deep(.van-search__content) {
+  background: transparent;
+  padding-left: 16px;
+}
+
+.search-bar :deep(.van-field__control) {
+  font-size: 15px;
+}
+
+.search-bar :deep(.van-search__action) {
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.search-bar :deep(.van-search__action .van-button) {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 16px;
+  padding: 0 20px;
+  height: 32px;
+  font-size: 14px;
+  line-height: 32px;
 }
 
 /* 商品列表 */
@@ -719,8 +863,44 @@ onMounted(() => {
 /* 分页 */
 .pagination {
   margin-top: 16px;
+  padding: 16px;
+  background: #fff;
+  border-radius: 8px;
   display: flex;
   justify-content: center;
+}
+
+.pagination :deep(.van-pagination) {
+  width: 100%;
+}
+
+.pagination :deep(.van-pagination__item) {
+  min-width: 36px;
+  height: 36px;
+  font-size: 14px;
+  background: #f5f5f5;
+  border-radius: 8px;
+  margin: 0 4px;
+}
+
+.pagination :deep(.van-pagination__item--active) {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+}
+
+.pagination :deep(.van-pagination__prev),
+.pagination :deep(.van-pagination__next) {
+  min-width: 60px;
+  height: 36px;
+  background: #667eea;
+  color: #fff;
+  border-radius: 8px;
+}
+
+.pagination :deep(.van-pagination__prev--disabled),
+.pagination :deep(.van-pagination__next--disabled) {
+  background: #e0e0e0;
+  color: #999;
 }
 
 /* 浮动按钮 */

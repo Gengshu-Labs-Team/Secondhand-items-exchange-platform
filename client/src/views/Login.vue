@@ -78,8 +78,12 @@ const onSubmit = async () => {
       
       showSuccessToast('登录成功')
       
-      // 跳转到之前的页面或首页
-      const redirect = route.query.redirect || '/'
+      // 获取重定向地址，排除登录页面本身
+      let redirect = route.query.redirect || '/'
+      // 如果重定向地址是登录页面，则跳转到首页
+      if (redirect === '/login' || redirect.startsWith('/login?')) {
+        redirect = '/'
+      }
       router.replace(redirect)
     } else {
       showFailToast(res.message || '登录失败')

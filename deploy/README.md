@@ -63,26 +63,53 @@ sudo bash deploy.sh
 
 修改代码后，重新部署：
 
-### 方法 A：使用更新脚本（推荐）
-```bash
+### 方法 A：使用同步脚本（推荐）⭐
+
+**Windows PowerShell：**
+```powershell
+cd E:\HUST\Secondhand-items-exchange-platform\deploy
+.\sync.ps1 -ServerIP 服务器IP
+
+# 然后 SSH 到服务器执行更新
+ssh root@服务器IP
 cd /var/www/campus-trade/deploy
 sudo bash update.sh
 ```
 
-### 方法 B：手动更新
+**Git Bash / WSL / Linux / Mac：**
 ```bash
-cd /var/www/campus-trade
+cd deploy
+bash sync.sh 服务器IP
 
-# 如果使用 Git
+# 然后 SSH 到服务器执行更新
+ssh root@服务器IP
+cd /var/www/campus-trade/deploy
+sudo bash update.sh
+```
+
+> ✅ 同步脚本会自动排除数据库和上传文件，保证数据安全！
+
+### 方法 B：使用 Git 拉取
+```bash
+# 在服务器上执行
+cd /var/www/campus-trade
 git pull
 
-# 更新后端
-cd server && npm install
-pm2 restart campus-api
+# 然后运行更新脚本
+cd deploy
+sudo bash update.sh
+```
 
-# 更新前端
-cd ../client && npm install && npm run build
-cp -r dist/* /var/www/html/
+### 方法 C：手动 rsync 同步
+```bash
+# 在本地执行（排除数据库和上传目录）
+rsync -avz --progress \
+    --exclude 'node_modules/' \
+    --exclude 'server/data/' \
+    --exclude 'server/uploads/' \
+    --exclude 'persistent-data/' \
+    --exclude '.git/' \
+    ./ root@服务器IP:/var/www/campus-trade/
 ```
 
 ---
@@ -101,6 +128,12 @@ cp -r dist/* /var/www/html/
 
 ⚠️ **重要**：更新代码时，`persistent-data` 目录中的数据会自动保留！
 
+### 🔒 数据保护机制
+
+1. **软链接保护**：部署脚本会将 `server/data` 和 `server/uploads` 软链接到 `persistent-data` 目录
+2. **Git 忽略**：`.gitignore` 已配置忽略数据库文件 (`*.db`, `*.db-wal`, `*.db-shm`)
+3. **同步脚本排除**：`sync.sh` 使用 rsync 自动排除数据目录
+
 ### 备份数据
 ```bash
 # 创建备份
@@ -109,6 +142,17 @@ tar -czf backup_$(date +%Y%m%d).tar.gz persistent-data/
 
 # 下载到本地（在本地执行）
 scp root@服务器IP:/var/www/campus-trade/backup_*.tar.gz ./
+```
+
+### 恢复数据
+```bash
+# 上传备份文件到服务器
+scp backup_20260124.tar.gz root@服务器IP:/var/www/campus-trade/
+
+# 在服务器上恢复
+cd /var/www/campus-trade
+tar -xzf backup_20260124.tar.gz
+pm2 restart campus-api
 ```
 
 ---

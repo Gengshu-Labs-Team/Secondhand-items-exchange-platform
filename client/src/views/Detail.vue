@@ -60,8 +60,8 @@
         <p>{{ item.description || '卖家很懒，什么都没写~' }}</p>
       </div>
 
-      <!-- 删除入口（隐藏） -->
-      <div class="delete-entry" @click="showDeleteSheet = true">
+      <!-- 管理入口（仅发布者或管理员可见） -->
+      <div v-if="item.canEdit || item.canDelete" class="delete-entry" @click="showManageSheet = true">
         <van-icon name="setting-o" />
         <span>管理商品</span>
       </div>
@@ -88,40 +88,48 @@
         </div>
       </van-popup>
 
-      <!-- 删除操作表 -->
+      <!-- 管理操作表 -->
       <van-action-sheet
-        v-model:show="showDeleteSheet"
-        :actions="deleteActions"
+        v-model:show="showManageSheet"
+        :actions="manageActions"
         cancel-text="取消"
-        @select="onDeleteSelect"
+        @select="onManageSelect"
       />
 
-      <!-- 删除密码弹窗 -->
-      <van-popup v-model:show="showDeletePopup" round>
-        <div class="delete-popup">
-          <h3>删除商品</h3>
-          <p>请输入发布时设置的管理密码</p>
-          <van-field
-            v-model="deletePassword"
-            type="password"
-            placeholder="请输入管理密码"
-            maxlength="6"
-          />
-          <div class="delete-btns">
-            <van-button @click="showDeletePopup = false">取消</van-button>
-            <van-button type="danger" @click="confirmDelete">确认删除</van-button>
+      <!-- 修改商品弹窗 -->
+      <van-popup v-model:show="showEditPopup" round position="bottom" :style="{ height: '80%' }">
+        <div class="edit-popup">
+          <div class="edit-header">
+            <span @click="showEditPopup = false">取消</span>
+            <h3>修改商品信息</h3>
+            <span class="save-btn" @click="saveEdit">保存</span>
+          </div>
+          <div class="edit-form">
+            <van-field v-model="editForm.title" label="标题" placeholder="请输入商品标题" maxlength="50" />
+            <van-field v-model="editForm.price" label="价格" type="number" placeholder="请输入价格" />
+            <van-field v-model="editForm.condition" label="新旧程度" readonly is-link @click="showConditionPicker = true" />
+            <van-field v-model="editForm.description" label="描述" type="textarea" placeholder="请输入商品描述" rows="4" autosize />
           </div>
         </div>
+      </van-popup>
+
+      <!-- 新旧程度选择器 -->
+      <van-popup v-model:show="showConditionPicker" position="bottom" round>
+        <van-picker
+          :columns="conditionColumns"
+          @confirm="onConditionConfirm"
+          @cancel="showConditionPicker = false"
+        />
       </van-popup>
     </template>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { showToast, showImagePreview, showSuccessToast } from 'vant'
-import { getItemDetail, deleteItem } from '@/api'
+import { showToast, showImagePreview, showSuccessToast, showConfirmDialog } from 'vant'
+import { getItemDetail, deleteItem, updateItem } from '@/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -130,13 +138,37 @@ const router = useRouter()
 const item = ref(null)
 const loading = ref(true)
 const showContactPopup = ref(false)
-const showDeleteSheet = ref(false)
-const showDeletePopup = ref(false)
-const deletePassword = ref('')
+const showManageSheet = ref(false)
+const showEditPopup = ref(false)
+const showConditionPicker = ref(false)
 
-const deleteActions = [
-  { name: '删除商品', color: '#ee0a24' }
+// 修改表单
+const editForm = ref({
+  title: '',
+  price: '',
+  condition: '',
+  description: ''
+})
+
+const conditionColumns = [
+  { text: '全新', value: '全新' },
+  { text: '九五新', value: '九五新' },
+  { text: '九成新', value: '九成新' },
+  { text: '八成新', value: '八成新' },
+  { text: '七成新及以下', value: '七成新及以下' }
 ]
+
+// 管理操作
+const manageActions = computed(() => {
+  const actions = []
+  if (item.value?.canEdit) {
+    actions.push({ name: '修改商品信息', value: 'edit' })
+  }
+  if (item.value?.canDelete) {
+    actions.push({ name: '删除商品', value: 'delete', color: '#ee0a24' })
+  }
+  return actions
+})
 
 // 获取商品详情
 const fetchDetail = async () => {
@@ -201,24 +233,71 @@ const copyContact = async () => {
   }
 }
 
-// 删除操作
-const onDeleteSelect = () => {
-  showDeleteSheet.value = false
-  showDeletePopup.value = true
-  deletePassword.value = ''
+// 管理操作选择
+const onManageSelect = (action) => {
+  showManageSheet.value = false
+  if (action.value === 'edit') {
+    // 打开编辑弹窗，填充当前数据
+    editForm.value = {
+      title: item.value.title,
+      price: item.value.price,
+      condition: item.value.condition,
+      description: item.value.description || ''
+    }
+    showEditPopup.value = true
+  } else if (action.value === 'delete') {
+    // 二次确认删除
+    showConfirmDialog({
+      title: '确认删除',
+      message: '确定要删除这个商品吗？删除后将无法恢复。',
+      confirmButtonColor: '#ee0a24'
+    }).then(() => {
+      confirmDelete()
+    }).catch(() => {})
+  }
 }
 
-// 确认删除
-const confirmDelete = async () => {
-  if (!deletePassword.value) {
-    showToast('请输入管理密码')
+// 新旧程度选择
+const onConditionConfirm = ({ selectedOptions }) => {
+  editForm.value.condition = selectedOptions[0].value
+  showConditionPicker.value = false
+}
+
+// 保存修改
+const saveEdit = async () => {
+  if (!editForm.value.title.trim()) {
+    showToast('请输入商品标题')
+    return
+  }
+  if (!editForm.value.price || parseFloat(editForm.value.price) < 0) {
+    showToast('请输入有效价格')
+    return
+  }
+  if (parseFloat(editForm.value.price) > 100000000) {
+    showToast('价格不能超过1亿元')
     return
   }
   
   try {
-    await deleteItem(route.params.id, deletePassword.value)
+    await updateItem(route.params.id, {
+      title: editForm.value.title,
+      price: parseFloat(editForm.value.price),
+      condition: editForm.value.condition,
+      description: editForm.value.description
+    })
+    showSuccessToast('修改成功')
+    showEditPopup.value = false
+    fetchDetail() // 刷新详情
+  } catch (error) {
+    // 错误已在拦截器处理
+  }
+}
+
+// 确认删除
+const confirmDelete = async () => {
+  try {
+    await deleteItem(route.params.id)
     showSuccessToast('删除成功')
-    showDeletePopup.value = false
     router.replace('/')
   } catch (error) {
     // 错误已在拦截器处理
@@ -377,32 +456,40 @@ onMounted(() => {
   color: #999;
 }
 
-/* 删除弹窗 */
-.delete-popup {
-  padding: 24px;
-  width: 300px;
-}
-
-.delete-popup h3 {
-  font-size: 18px;
-  text-align: center;
-  margin-bottom: 8px;
-}
-
-.delete-popup p {
-  text-align: center;
-  color: #666;
-  font-size: 14px;
-  margin-bottom: 16px;
-}
-
-.delete-btns {
+/* 编辑弹窗 */
+.edit-popup {
+  height: 100%;
   display: flex;
-  gap: 12px;
-  margin-top: 20px;
+  flex-direction: column;
 }
 
-.delete-btns .van-button {
+.edit-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.edit-header h3 {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.edit-header span {
+  font-size: 14px;
+  color: #666;
+  cursor: pointer;
+}
+
+.edit-header .save-btn {
+  color: #1989fa;
+  font-weight: 500;
+}
+
+.edit-form {
   flex: 1;
+  overflow-y: auto;
+  padding: 12px 0;
 }
 </style>

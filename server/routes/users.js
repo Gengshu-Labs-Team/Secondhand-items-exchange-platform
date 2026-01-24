@@ -30,12 +30,21 @@ router.get('/', async (req, res) => {
       params.push(parseInt(status));
     }
 
-    // 查询总数
+    // 查询总数（带筛选条件）
     const [countResult] = await pool.execute(
       `SELECT COUNT(*) as total FROM users WHERE ${whereClause}`,
       params
     );
     const total = countResult[0].total;
+
+    // 查询全部用户统计（不带筛选条件）
+    const [statsResult] = await pool.execute(
+      `SELECT 
+        COUNT(*) as totalAll,
+        SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as active,
+        SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) as disabled
+       FROM users`
+    );
 
     // 查询列表
     const [users] = await pool.execute(
@@ -50,7 +59,12 @@ router.get('/', async (req, res) => {
         list: users,
         total,
         page: parseInt(page),
-        pageSize: parseInt(pageSize)
+        pageSize: parseInt(pageSize),
+        stats: {
+          total: statsResult[0].totalAll || 0,
+          active: statsResult[0].active || 0,
+          disabled: statsResult[0].disabled || 0
+        }
       }
     });
   } catch (error) {
